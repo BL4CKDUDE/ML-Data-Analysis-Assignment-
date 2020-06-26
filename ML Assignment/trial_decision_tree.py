@@ -38,14 +38,14 @@ for data_point in full_data:
 
 class Node:
     def __init__(self, predicted_class):
-        self.predicted_class = predicted_class
         self.feature_index = 0
-        self.threshold = 0
-        self.left = None
+        self.predicted_class = predicted_class
         self.right = None
+        self.left = None
+        self.threshold = 0
 
     def debug(self, feature_names, class_names, show_details):
-        """Print an ASCII visualization of the tree."""
+        """Print an ASCII visualization of the tree"""
         lines, _, _, _ = self._debug_aux(
             feature_names, class_names, show_details, root=True
         )
@@ -61,12 +61,7 @@ class Node:
             lines = [
                 "{} < {:.2f}".format(feature_names[self.feature_index], self.threshold)
             ]
-        if show_details:
-            lines += [
-                "gini = {:.2f}".format(self.gini),
-                "samples = {}".format(self.num_samples),
-                str(self.num_samples_per_class),
-            ]
+
         width = max(len(line) for line in lines)
         height = len(lines)
         if is_leaf:
@@ -94,9 +89,9 @@ class Node:
         bottom_line = x * " " + "│" + (n - x - 1) * " " + lines[-1] + y * " " + "│" + (m - y - 1) * " "
         # fmt: on
         if p < q:
-            left += [n * " "] * (q - p)
+            left = left + [n * " "] * (q - p)
         elif q < p:
-            right += [m * " "] * (p - q)
+            right = right + [m * " "] * (p - q)
         zipped_lines = zip(left, right)
         lines = (
                 top_lines
@@ -110,16 +105,16 @@ class Node:
 
 
 class DecisionTreeClassifier:
-    def __init__(self, max_depth=None):
+    def __init__(self, max_depth=7):
         self.max_depth = max_depth
 
-    def debug(self, feature_names, class_names, show_details=True):
+    def debug(self, feature_names, class_names, show_details=False):
         """Print ASCII visualization of decision tree."""
         self.tree_.debug(feature_names, class_names, show_details)
 
     def fit(self, X, y, _tree):
-        self.n_classes_ = len(set(y))
         self.n_features_ = X.shape[1]
+        self.n_classes_ = len(set(y))
         self.tree_ = self._grow_tree(X, y, _tree)
 
     def predict(self, X):
@@ -127,9 +122,8 @@ class DecisionTreeClassifier:
 
     def _best_split(self, X, y):
         """Find the best split for a node.
-
-                "Best" means that the average impurity of the two children, weighted by their
-                population, is the smallest possible. Additionally it must be less than the
+                'Best' means that the average impurity of the two children, weighted by their
+                population, is the smallest possible. Furthermore, it must be less than the
                 impurity of the current node.
 
                 To find the best split, we loop through all the features, and consider all the
@@ -144,13 +138,13 @@ class DecisionTreeClassifier:
         m = y.size
         if m <= 1:
             return None, None
-        # Count of each class in the current node.
-        num_parent = [np.sum(y == c) for c in range(self.n_classes_)]
 
-        # Gini of current node.
-        best_gini = 1.0 - sum((n / m) ** 2 for n in num_parent)
+        num_parent = [np.sum(y == c) for c in range(self.n_classes_)]  # Count of each class in the current node.
 
-        best_idx, best_thr = None, None
+        best_gini = 1.0 - sum((n / m) ** 2 for n in num_parent)  # Gini of current node.
+
+        best_idx = None
+        best_thr = None
 
         # Loop through all features.
         for idx in range(self.n_features_):
@@ -161,15 +155,14 @@ class DecisionTreeClassifier:
                 c = classes[i - 1]
                 num_left[c] += 1
                 num_right[c] -= 1
-                gini_left = 1.0 - sum(
+                gini_left = 1.0 - sum(  # compute gini of left nodes
                     (num_left[x] / i) ** 2 for x in range(self.n_classes_)
                 )
-                gini_right = 1.0 - sum(
+                gini_right = 1.0 - sum( # compute gini of right nodes
                     (num_right[x] / (m - i)) ** 2 for x in range(self.n_classes_)
                 )
 
-                # The Gini impurity of a split is the weighted average of the Gini
-                # impurity of the children.
+                # The Gini impurity of a split is the weighted average of the Gini impurity of the children.
                 gini = (i * gini_left + (m - i) * gini_right) / m
 
                 if thresholds[i] == thresholds[i - 1]:
@@ -213,10 +206,10 @@ class DecisionTreeClassifier:
         """Predict class for a single sample."""
         node = self.tree_
         while node.left:
-            if inputs[node.feature_index] < node.threshold:
-                node = node.left
-            else:
+            if inputs[node.feature_index] >= node.threshold:
                 node = node.right
+            else:
+                node = node.left
         return node.predicted_class
 
 
@@ -229,6 +222,7 @@ y_train = np.array(y_train)
 
 """create decision to learn the pattern of data, then make predictions based on test data"""
 clf = DecisionTreeClassifier(max_depth=3)
+
 _tree = ete3.Tree()
 clf.fit(train_data, y_train, _tree)
 y_predicted = clf.predict(test_data)
@@ -256,4 +250,4 @@ print('TP is {} \t FN is {}'.format(confusion_mat[0][0], confusion_mat[0][1]))
 print('FP is {} \t TN is {}'.format(confusion_mat[1][0], confusion_mat[1][1]))
 
 # print(_tree.get_ascii(show_internal=True,attributes=['name','predicted class']))
-clf.debug(list(feature_names), list(target_names), False) # print the tree
+clf.debug(list(feature_names), list(target_names), False)  # print the tree
